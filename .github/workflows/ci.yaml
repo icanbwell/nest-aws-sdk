@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: [self-hosted, main]
+
+    strategy:
+      matrix:
+        node-version: [16.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          always-auth: true
+          registry-url: https://npm.pkg.github.com
+          scope: '@icanbwell'
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.BWELL_DEV_PAT}}
+      - run: yarn lint
+      - run: yarn test
+      - run: yarn build

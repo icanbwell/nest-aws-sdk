@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release Type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+jobs:
+  bump-version:
+    runs-on: [self-hosted, main]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{secrets.BWELL_DEV_PAT}}
+
+      - name: Configure git
+        run: |
+          git config user.name "bwell-dev"
+          git config user.email "bwell-dev@icanbwell.com"
+
+      - name: Setup NodeJS 16
+        uses: actions/setup-node@v3
+        with:
+          always-auth: true
+          node-version: 16
+          registry-url: https://npm.pkg.github.com
+          scope: '@icanbwell'
+          cache: 'yarn'
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.BWELL_DEV_PAT}}
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.BWELL_DEV_PAT}}
+
+      - name: Linting
+        run: yarn lint
+
+      - name: Test
+        run: yarn test
+
+      - name: Build
+        run: |
+          yarn build
+          git add lib -f
+
+      - name: Bump version number
+        run: |
+          yarn version --${{ inputs.release_type }} --message "[no ci]: Bump ${{ inputs.release_type }} version"
+          echo "TAG=$(git describe --tags)" >> $GITHUB_ENV
+
+      - name: Push changes
+        run: |
+          git push --tags origin main
+
+      - name: Create Github release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ env.TAG }} --generate-notes
+
+      - name: Publish components to Github package repository
+        run: |
+          npm config set @icanbwell:registry https://npm.pkg.github.com
+          yarn publish
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.BWELL_DEV_PAT}}
