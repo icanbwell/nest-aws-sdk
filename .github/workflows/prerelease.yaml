@@ -6,7 +6,7 @@ on:
 
 jobs:
   bump-version:
-    runs-on: [self-hosted, main]
+    runs-on: main
 
     steps:
       - name: Checkout repository

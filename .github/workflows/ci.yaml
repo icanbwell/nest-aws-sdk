@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: [self-hosted, main]
+    runs-on: main
 
     strategy:
       matrix:
